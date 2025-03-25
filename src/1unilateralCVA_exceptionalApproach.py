@@ -6,6 +6,8 @@ from dash import Dash, dcc, html, Input, Output
 def calculate_unilateral_cva(exposure, hazard_rate_pct, recovery_rate_pct, discount_rate_pct, time_steps):
     """
     Calculate Unilateral CVA using the discrete summation formula.
+    Two different approaches are taken to derive the CVA, an expectation-led approach and a replication-based approach. 
+    Now using expectation-led approach explaining the below concept.
     
     Parameters:
     - exposure (list): Positive exposure (V_t)^+ at each time step.
@@ -74,7 +76,7 @@ app.layout = html.Div([
             
             # Notes (directly below inputs)
             html.Div([
-                html.H2("CVA Formula Breakdown", style={'margin-top': '10px'}),
+                html.H2("CVA Formula Breakdown - Expectation-led approach (basic approach)", style={'margin-top': '10px'}),
                 html.P("The Unilateral CVA formula (discrete version) is:"),
                 html.P("CVA(t) = (1 - R) × Σ [Φ(τ > t_i) - Φ(τ > t_{i+1})] × E[e^(-∫ r(u) du) (V_{t_i})^+ | G_t]"),
                 html.Ul([
@@ -95,7 +97,7 @@ app.layout = html.Div([
                     html.Li("CVA = 0.6 * [0.046 * 97 + 0.905 * 75.36] = 0.6 * 72.663 = 43.60.")
                 ]),
                 html.H2("Notes from the Book", style={'margin-top': '10px'}),
-                html.P("CVA adjusts for counterparty default risk. Key points:"),
+                html.P(" The unilateral CVA model that assumes only the counterparty can  default. Two different approaches are taken to derive the CVA, an expectation-led approach and a replication-based approach. Now using expectation-led approach explaining the below concept. CVA adjusts for counterparty default risk. Key points:"),
                 html.Ul([
                     html.Li("Calculated at counterparty level due to netting rules."),
                     html.Li("Managed separately from derivatives, requires credit risk skills."),
