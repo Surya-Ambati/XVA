@@ -1,5 +1,5 @@
 import dash
-from dash import dcc, html, Input, Output, State
+from dash import dcc, html, Input, Output, State, dash_table
 import plotly.express as px
 import pandas as pd
 import numpy as np
@@ -26,55 +26,55 @@ CROSS_BUCKET_CORR_MAT = np.array([
 ]) / 100
 MULT = 1
 
-def generate_dummy_data():
-    today = datetime.today()
-    exposure_dates = [today + timedelta(days=i) for i in range(NO_OF_EXPOSURE_DATES)]
-    exposure_dates_serial = [(d - pd.Timestamp('1899-12-30')).days for d in exposure_dates]
+# def generate_dummy_data():
+#     today = datetime.today()
+#     exposure_dates = [today + timedelta(days=i) for i in range(NO_OF_EXPOSURE_DATES)]
+#     exposure_dates_serial = [(d - pd.Timestamp('1899-12-30')).days for d in exposure_dates]
     
-    grid_ids = [1001, 1002, 1003, 1004, 1005]
-    np.random.seed(42)
-    epe_data = {grid_id: np.random.lognormal(mean=10, sigma=1, size=NO_OF_EXPOSURE_DATES) for grid_id in grid_ids}
-    epe_df = pd.DataFrame(epe_data, index=exposure_dates_serial)
+#     grid_ids = [1001, 1002, 1003, 1004, 1005]
+#     np.random.seed(42)
+#     epe_data = {grid_id: np.random.lognormal(mean=10, sigma=1, size=NO_OF_EXPOSURE_DATES) for grid_id in grid_ids}
+#     epe_df = pd.DataFrame(epe_data, index=exposure_dates_serial)
     
-    grid_to_curve = {1001: ['CurveA'], 1002: ['CurveB'], 1003: ['CurveC'], 1004: ['CurveD'], 1005: ['CurveE']}
-    curve_to_rr = {'CurveA': 0.4, 'CurveB': 0.4, 'CurveC': 0.4, 'CurveD': 0.4, 'CurveE': 0.4}
+#     grid_to_curve = {1001: ['CurveA'], 1002: ['CurveB'], 1003: ['CurveC'], 1004: ['CurveD'], 1005: ['CurveE']}
+#     curve_to_rr = {'CurveA': 0.4, 'CurveB': 0.4, 'CurveC': 0.4, 'CurveD': 0.4, 'CurveE': 0.4}
     
-    tenor_points = [0, 0.5, 1, 3, 5, 10]
-    hazard_curves = {
-        'CurveA': np.array([tenor_points, [0.01]*6]).T,
-        'CurveB': np.array([tenor_points, [0.02]*6]).T,
-        'CurveC': np.array([tenor_points, [0.015]*6]).T,
-        'CurveD': np.array([tenor_points, [0.025]*6]).T,
-        'CurveE': np.array([tenor_points, [0.03]*6]).T,
-    }
+#     tenor_points = [0, 0.5, 1, 3, 5, 10]
+#     hazard_curves = {
+#         'CurveA': np.array([tenor_points, [0.01]*6]).T,
+#         'CurveB': np.array([tenor_points, [0.02]*6]).T,
+#         'CurveC': np.array([tenor_points, [0.015]*6]).T,
+#         'CurveD': np.array([tenor_points, [0.025]*6]).T,
+#         'CurveE': np.array([tenor_points, [0.03]*6]).T,
+#     }
     
-    ir_curve = np.array([[0, 0.01], [1, 0.01], [2, 0.01], [5, 0.01], [10, 0.01], [20, 0.01]])
-    ir_interpolator = scipy.interpolate.interp1d(ir_curve[:, 0], ir_curve[:, 1], fill_value="extrapolate")
+#     ir_curve = np.array([[0, 0.01], [1, 0.01], [2, 0.01], [5, 0.01], [10, 0.01], [20, 0.01]])
+#     ir_interpolator = scipy.interpolate.interp1d(ir_curve[:, 0], ir_curve[:, 1], fill_value="extrapolate")
     
-    sa_cva_report = pd.DataFrame({
-        'Bucket': [b for b in range(1, 6) for _ in TENORS],
-        'Tenor': TENORS * 5,
-        'CptyGrid': [grid_id for grid_id in grid_ids for _ in TENORS],
-        'CptyParentGrid': [grid_id for grid_id in grid_ids for _ in TENORS],
-        'CreditQuality': ['CQS1'] * (5 * len(TENORS)),
-        'RW': [0.007, 0.008, 0.01, 0.0135, 0.0225] * 5
-    })
+#     sa_cva_report = pd.DataFrame({
+#         'Bucket': [b for b in range(1, 6) for _ in TENORS],
+#         'Tenor': TENORS * 5,
+#         'CptyGrid': [grid_id for grid_id in grid_ids for _ in TENORS],
+#         'CptyParentGrid': [grid_id for grid_id in grid_ids for _ in TENORS],
+#         'CreditQuality': ['CQS1'] * (5 * len(TENORS)),
+#         'RW': [0.007, 0.008, 0.01, 0.0135, 0.0225] * 5
+#     })
     
-    sp = np.linspace(1, 0.75, NO_OF_EXPOSURE_DATES)  # Dummy survival probability
+#     sp = np.linspace(1, 0.75, NO_OF_EXPOSURE_DATES)  # Dummy survival probability
     
-    return {
-        'exposure_dates': exposure_dates,
-        'exposure_dates_serial': exposure_dates_serial,
-        'epe_df': epe_df,
-        'grid_to_curve': grid_to_curve,
-        'curve_to_rr': curve_to_rr,
-        'hazard_curves': hazard_curves,
-        'ir_interpolator': ir_interpolator,
-        'sa_cva_report': sa_cva_report,
-        'sp': sp
-    }
+#     return {
+#         'exposure_dates': exposure_dates,
+#         'exposure_dates_serial': exposure_dates_serial,
+#         'epe_df': epe_df,
+#         'grid_to_curve': grid_to_curve,
+#         'curve_to_rr': curve_to_rr,
+#         'hazard_curves': hazard_curves,
+#         'ir_interpolator': ir_interpolator,
+#         'sa_cva_report': sa_cva_report,
+#         'sp': sp
+#     }
 
-data = generate_dummy_data()
+# data = generate_dummy_data()
 
 def compute_survival_probabilities(hazard_curve, times):
     hazard_interp = scipy.interpolate.interp1d(hazard_curve[:, 0], hazard_curve[:, 1], kind='previous', fill_value="extrapolate")
@@ -216,32 +216,6 @@ def compute_cost(capital_profile):
         cost += capital[j] * HURDLE_RATE * (times[j+1] - times[j])
     return cost
 
-
-import dash
-from dash import dcc, html, Input, Output, State, dash_table
-import plotly.express as px
-import pandas as pd
-import numpy as np
-import scipy.interpolate
-from datetime import datetime, timedelta
-
-# Constants
-NO_OF_EXPOSURE_DATES = 90
-HURDLE_RATE = 0.14625
-TENORS = ['6M', '1Y', '3Y', '5Y', '10Y']
-BUCKET_PERIOD = np.array([0.5, 1, 3, 5, 7, 10])  # Years
-CROSS_BUCKET_CORR_MAT = np.array([
-    [0.0, 10.0, 20.0, 25.0, 20.0, 15.0, 10, 0.0, 45.0],
-    [10.0, 0.0, 5.0, 15.0, 20.0, 5.0, 20, 0.0, 45.0],
-    [20.0, 5.0, 0.0, 20.0, 25.0, 5.0, 5, 0.0, 45.0],
-    [25.0, 15.0, 20.0, 0.0, 25.0, 5.0, 15, 0.0, 45.0],
-    [20.0, 20.0, 25.0, 25.0, 0.0, 5.0, 20, 0.0, 45.0],
-    [15.0, 5.0, 5.0, 5.0, 5.0, 0.0, 5, 0.0, 45.0],
-    [10, 20, 5, 15, 20, 5, 0, 0.0, 45.0],
-    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0, 0.0, 0.0],
-    [45.0, 45.0, 45.0, 45.0, 45.0, 45.0, 45.0, 0.0, 0.0]
-]) / 100
-MULT = 1
 
 # Generate Dummy Data
 def generate_dummy_data():
