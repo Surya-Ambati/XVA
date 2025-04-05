@@ -332,16 +332,26 @@ class WWRCalculator:
             point = hover_data['points'][0]
             cp = point['x']
             corr = point['y']
-            customdata = point.get('customdata', [1, 0, 1])  # Default pval=1, slope=0, factor=1
-            pval = customdata[0] if len(customdata) > 0 else 1
+            
+            # Look up the p-value directly from wwr_correlations
+            corr_row = self.wwr_correlations[self.wwr_correlations['Counterparty'] == cp]
+            if corr_row.empty:
+                return html.Div(f"No data found for {cp}")
+            pval = corr_row['P-Value'].values[0]
+            
+            # Determine the risk type and significance
+            if corr > 0.3 and pval < 0.05:
+                risk_message = "Significant Wrong-Way Risk (WWR)"
+            elif corr < -0.3 and pval < 0.05:
+                risk_message = "Significant Right-Way Risk (RWR)"
+            else:
+                risk_message = "No significant relationship"
             
             return html.Div([
                 html.H4(f"{cp} Summary"),
                 html.P(f"Correlation: {corr:.2f}"),
                 html.P(f"P-value: {pval:.4f}"),
-                html.P("Significant WWR" if corr > 0.3 and pval < 0.05 else
-                      "Significant RWR" if corr < -0.3 and pval < 0.05 else
-                      "No significant relationship")
+                html.P(risk_message)
             ])
             
         @app.callback(
