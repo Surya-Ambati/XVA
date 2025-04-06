@@ -219,13 +219,13 @@ if __name__ == "__main__":
     # Step 5: Visualize results
     print("\nGenerating visualizations...")
     
-    # Show correlation comparison
-    corr_fig = analyzer.visualize_results()
-    corr_fig.show()
+    # # Show correlation comparison
+    # corr_fig = analyzer.visualize_results()
+    # corr_fig.show()
     
-    # Show exposure vs proxy relationships
-    for method in results.keys():
-        scatter_fig = analyzer.plot_exposure_vs_proxy(method)
-        scatter_fig.show()
+    # # Show exposure vs proxy relationships
+    # for method in results.keys():
+    #     scatter_fig = analyzer.plot_exposure_vs_proxy(method)
+    #     scatter_fig.show()
     
     print("\nAnalysis complete!")
