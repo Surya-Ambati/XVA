@@ -14,380 +14,378 @@ app.layout = dbc.Container([
     dbc.Row([
         dbc.Col([
             # Control Panel
-            html.H3("FVA Model Analysis"),
+            html.H3("FVA Analysis Controls"),
             dcc.Tabs([
-                # First Generation Models Tab
-                dcc.Tab(label="Discount Models", children=[
-                    html.H5("Market Data"),
-                    dcc.Input(id='libor-rate', value=0.03, type='number', placeholder="3M LIBOR (%)"),
-                    dcc.Input(id='funding-spread', value=0.02, type='number', placeholder="Funding Spread (%)"),
-                    
-                    html.H5("Trade Parameters"),
+                # Exposure Profiles Tab
+                dcc.Tab(label="Exposure Profiles", children=[
+                    html.H5("Swap Parameters"),
                     dcc.Input(id='notional', value=100, type='number', placeholder="Notional ($M)"),
-                    dcc.Input(id='maturity', value=5, type='number', placeholder="Maturity (years)"),
+                    dcc.Input(id='coupon', value=5.0, type='number', placeholder="Coupon (%)"),
+                    dcc.Input(id='maturity', value=10, type='number', placeholder="Maturity (years)"),
                     
-                    html.H5("Collateralization"),
-                    dcc.Dropdown(
-                        id='collateral-type',
-                        options=[
-                            {'label': 'Unsecured', 'value': 'unsecured'},
-                            {'label': 'Partial CSA', 'value': 'partial'},
-                            {'label': 'Full CSA', 'value': 'full'}
-                        ],
-                        value='unsecured'
-                    ),
+                    html.H5("Market Data"),
+                    dcc.Input(id='volatility', value=0.2, type='number', placeholder="Volatility"),
+                    dcc.Input(id='mean-reversion', value=0.05, type='number', placeholder="Mean Reversion"),
                     
-                    html.Button('Calculate FVA', id='calc-discount-fva'),
+                    html.Button('Calculate Exposures', id='calc-exposures'),
                 ]),
                 
-                # Double Counting Tab
-                dcc.Tab(label="DVA Double Counting", children=[
-                    html.H5("Credit Parameters"),
-                    dcc.Input(id='default-intensity', value=0.05, type='number', placeholder="Default Intensity (λ)"),
+                # FVA Calculation Tab
+                dcc.Tab(label="FVA Calculation", children=[
+                    html.H5("Funding Parameters"),
+                    dcc.Input(id='funding-spread', value=0.02, type='number', placeholder="Funding Spread (%)"),
                     dcc.Input(id='recovery-rate', value=0.4, type='number', placeholder="Recovery Rate"),
-                    dcc.Input(id='bond-cds-basis', value=0.01, type='number', placeholder="Bond-CDS Basis (γ)"),
                     
-                    html.H5("Counterparty Types"),
-                    dcc.RadioItems(
-                        id='counterparty-type',
+                    html.H5("Collateral Parameters"),
+                    dcc.Dropdown(
+                        id='csa-type',
                         options=[
-                            {'label': 'Risky Borrower', 'value': 'risky_borrower'},
-                            {'label': 'Risky Lender', 'value': 'risky_lender'}
+                            {'label': 'No CSA', 'value': 'none'},
+                            {'label': 'Full CSA', 'value': 'full'},
+                            {'label': 'Partial CSA', 'value': 'partial'}
                         ],
-                        value='risky_borrower'
+                        value='none'
                     ),
+                    dcc.Input(id='threshold', value=10, type='number', placeholder="Threshold ($M)"),
                     
-                    html.Button('Analyze Double Counting', id='analyze-double-counting'),
+                    html.Button('Calculate FVA', id='calc-fva'),
                 ]),
                 
-                # Second Generation Models Tab
-                dcc.Tab(label="Exposure Models", children=[
-                    html.H5("Exposure Parameters"),
-                    dcc.Input(id='epe', value=20, type='number', placeholder="EPE ($M)"),
-                    dcc.Input(id='ene', value=15, type='number', placeholder="ENE ($M)"),
+                # Hedging Analysis Tab
+                dcc.Tab(label="Hedging Analysis", children=[
+                    html.H5("Hedge Strategy"),
+                    dcc.Dropdown(
+                        id='hedge-type',
+                        options=[
+                            {'label': 'Back-to-back CSA', 'value': 'backtoback'},
+                            {'label': 'Unsecured Hedge', 'value': 'unsecured'},
+                            {'label': 'Partial Hedge', 'value': 'partial'}
+                        ],
+                        value='backtoback'
+                    ),
                     
-                    html.H5("Funding Spread Term Structure"),
-                    dcc.Input(id='short-term-spread', value=0.03, type='number', placeholder="Short-term (%)"),
-                    dcc.Input(id='long-term-spread', value=0.02, type='number', placeholder="Long-term (%)"),
+                    html.H5("Rehypothecation"),
+                    dcc.RadioItems(
+                        id='rehypothecation',
+                        options=[
+                            {'label': 'Allowed', 'value': True},
+                            {'label': 'Not Allowed', 'value': False}
+                        ],
+                        value=True
+                    ),
                     
-                    html.Button('Calculate Exposure FVA', id='calc-exposure-fva'),
+                    html.Button('Analyze Hedge', id='analyze-hedge'),
                 ])
             ]),
         ], width=4),
         
         # Results Panel
         dbc.Col([
-            html.Div(id='discount-model-output'),
-            html.Div(id='double-counting-output'),
-            html.Div(id='exposure-model-output'),
+            html.Div(id='exposure-output'),
+            html.Div(id='fva-output'),
+            html.Div(id='hedge-output'),
         ], width=8)
     ])
 ])
 
 # Helper functions
-def calculate_discount_fva(libor_rate, funding_spread, notional, maturity, collateral_type):
-    """Calculate first-generation FVA using discount adjustment"""
-    risk_free_rate = libor_rate / 100
-    spread = funding_spread / 100
+def calculate_exposures(notional, coupon, maturity, volatility, mean_reversion):
+    """Calculate expected exposure profiles using simple model"""
+    time_points = np.linspace(0, maturity, 50)
     
-    if collateral_type == 'full':
-        adj_rate = risk_free_rate  # OIS discounting for full CSA
-    elif collateral_type == 'partial':
-        adj_rate = risk_free_rate + spread * 0.5  # Partial adjustment
-    else:
-        adj_rate = risk_free_rate + spread  # Full funding adjustment
+    # Simplified exposure model (could be replaced with more sophisticated calculation)
+    epe = notional * norm.pdf(norm.ppf(coupon/100)) * np.sqrt(time_points) * volatility * np.exp(-mean_reversion*time_points)
+    ene = -notional * norm.pdf(norm.ppf(coupon/100)) * np.sqrt(time_points) * volatility * np.exp(-mean_reversion*time_points)
     
-    # Simple PV calculation
-    pv_risk_free = notional * np.exp(-risk_free_rate * maturity)
-    pv_adjusted = notional * np.exp(-adj_rate * maturity)
-    fva = pv_adjusted - pv_risk_free
-    
-    return pv_risk_free, pv_adjusted, fva
+    return pd.DataFrame({'Time': time_points, 'EPE': epe, 'ENE': ene})
 
-def analyze_double_counting(default_intensity, recovery_rate, bond_cds_basis, counterparty_type):
-    """Analyze DVA/FVA double counting issue"""
-    lambda_b = default_intensity / 100
-    gamma_b = bond_cds_basis / 100
-    R = recovery_rate / 100
+def calculate_fva(exposure_df, funding_spread, recovery_rate, csa_type, threshold):
+    """Calculate FVA based on exposure profiles"""
+    if csa_type == 'full':
+        return 0.0, 0.0  # Return tuple of zeros for fully collateralized trades
     
-    if counterparty_type == 'risky_borrower':
-        # Lender's CVA
-        cva = (1 - np.exp(-lambda_b * 5))  # Using 5y maturity as example
-        # Borrower's FVA-adjusted value
-        fva_adj = (1 - np.exp(-(2*lambda_b + gamma_b) * 5))
-        # Traditional DVA
-        dva = (1 - np.exp(-lambda_b * 5))
+    # Discount factors (simplified)
+    discount_factors = np.exp(-0.02 * exposure_df['Time'])
+    
+    if csa_type == 'partial':
+        # Apply threshold
+        epe = np.maximum(exposure_df['EPE'] - threshold, 0)
+        ene = np.maximum(exposure_df['ENE'] - threshold, 0)
     else:
-        # Lender's FVA
-        cva = 0
-        fva_adj = (1 - np.exp(-(lambda_b + gamma_b) * 5))
-        dva = 0
-    
-    return cva, fva_adj, dva
-
-def calculate_exposure_fva(epe, ene, short_term_spread, long_term_spread):
-    """Calculate second-generation exposure-based FVA"""
-    short_spread = short_term_spread / 100
-    long_spread = long_term_spread / 100
-    
-    # Simple linear term structure
-    def spread_curve(t):
-        return short_spread + (long_spread - short_spread) * min(t/5, 1)  # 5y ramp
-    
-    # Integrate over time
-    time_points = np.linspace(0, 5, 20)
-    spreads = [spread_curve(t) for t in time_points]
-    discount_factors = np.exp(-0.03 * time_points)  # Using 3% discount rate
+        epe = exposure_df['EPE']
+        ene = exposure_df['ENE']
     
     # FVA calculation
-    fva_cost = np.sum(epe * spreads * discount_factors * np.gradient(time_points))
-    fva_benefit = np.sum(ene * spreads * discount_factors * np.gradient(time_points) * (1 - 0.4))  # 40% recovery
+    fva_cost = np.sum(epe * funding_spread/100 * discount_factors * np.gradient(exposure_df['Time']))
+    fva_benefit = np.sum(ene * funding_spread/100 * (1-recovery_rate) * discount_factors * np.gradient(exposure_df['Time']))
     
-    return fva_cost, fva_benefit, time_points, spreads
+    return fva_cost, fva_benefit
+
+def analyze_hedge_strategy(hedge_type, rehypothecation, exposure_df):
+    """Analyze hedge strategy funding implications"""
+    results = {}
+    
+    if hedge_type == 'backtoback':
+        if rehypothecation:
+            results['funding_cost'] = 0
+            results['funding_benefit'] = 0
+            results['description'] = "Perfect collateral match with rehypothecation - no funding impact"
+        else:
+            results['funding_cost'] = np.sum(exposure_df['EPE']) * 0.02  # Example calculation
+            results['funding_benefit'] = np.sum(exposure_df['ENE']) * 0.02
+            results['description'] = "Collateral needs to be sourced despite hedge"
+    
+    elif hedge_type == 'unsecured':
+        results['funding_cost'] = np.sum(exposure_df['EPE']) * 0.05  # Higher cost for unsecured
+        results['funding_benefit'] = np.sum(exposure_df['ENE']) * 0.03  # Lower benefit
+        results['description'] = "Higher funding costs due to unsecured hedge"
+    
+    else:  # partial
+        results['funding_cost'] = np.sum(exposure_df['EPE']) * 0.03
+        results['funding_benefit'] = np.sum(exposure_df['ENE']) * 0.02
+        results['description'] = "Partial hedge leaves residual funding exposure"
+    
+    return results
 
 # Callbacks
 @app.callback(
-    Output('discount-model-output', 'children'),
-    Input('calc-discount-fva', 'n_clicks'),
-    [State('libor-rate', 'value'),
-     State('funding-spread', 'value'),
-     State('notional', 'value'),
+    Output('exposure-output', 'children'),
+    Input('calc-exposures', 'n_clicks'),
+    [State('notional', 'value'),
+     State('coupon', 'value'),
      State('maturity', 'value'),
-     State('collateral-type', 'value')]
+     State('volatility', 'value'),
+     State('mean-reversion', 'value')]
 )
-def update_discount_model(n_clicks, libor_rate, funding_spread, notional, maturity, collateral_type):
+def update_exposures(n_clicks, notional, coupon, maturity, volatility, mean_reversion):
     if n_clicks is None:
         return ""
     
-    pv_risk_free, pv_adjusted, fva = calculate_discount_fva(
-        libor_rate, funding_spread, notional, maturity, collateral_type
-    )
+    # Calculate exposures
+    exposure_df = calculate_exposures(notional, coupon, maturity, volatility, mean_reversion)
     
-    # Create valuation comparison
+    # Create exposure plot
     fig = go.Figure()
-    fig.add_trace(go.Bar(
-        x=['Risk-Free', 'Adjusted'],
-        y=[pv_risk_free, pv_adjusted],
-        name='Present Value'
-    ))
+    fig.add_trace(go.Scatter(x=exposure_df['Time'], y=exposure_df['EPE'], name='EPE', fill='tozeroy'))
+    fig.add_trace(go.Scatter(x=exposure_df['Time'], y=exposure_df['ENE'], name='ENE', fill='tozeroy'))
     
     fig.update_layout(
-        title='First-Generation FVA: Discount Adjustment',
-        yaxis_title='Present Value ($M)',
-        hovermode='x'
-    )
-    
-    # Create discount curve comparison
-    times = np.linspace(0, maturity, 20)
-    risk_free_dfs = np.exp(-libor_rate/100 * times)
-    
-    if collateral_type == 'full':
-        adjusted_dfs = risk_free_dfs  # OIS discounting
-    elif collateral_type == 'partial':
-        adjusted_dfs = np.exp(-(libor_rate/100 + funding_spread/100 * 0.5) * times)
-    else:
-        adjusted_dfs = np.exp(-(libor_rate/100 + funding_spread/100) * times)
-    
-    curve_fig = go.Figure()
-    curve_fig.add_trace(go.Scatter(
-        x=times, y=risk_free_dfs, name='Risk-Free Discount'
-    ))
-    curve_fig.add_trace(go.Scatter(
-        x=times, y=adjusted_dfs, name='Adjusted Discount'
-    ))
-    
-    curve_fig.update_layout(
-        title='Discount Curve Comparison',
-        xaxis_title='Time (years)',
-        yaxis_title='Discount Factor',
-        hovermode='x unified'
-    )
-    
-    notes = html.Div([
-        html.H5("First-Generation FVA Interpretation"),
-        html.P("This shows the simple discount adjustment approach:"),
-        html.Ul([
-            html.Li(f"Risk-free PV: ${pv_risk_free:.2f}M (discounted at LIBOR)"),
-            html.Li(f"Adjusted PV: ${pv_adjusted:.2f}M (includes funding spread)"),
-            html.Li(f"FVA Impact: ${fva:.2f}M")
-        ]),
-        html.P("Key limitations:"),
-        html.Ul([
-            html.Li("Cannot handle partial collateralization well"),
-            html.Li("Leads to DVA double-counting issues"),
-            html.Li("No connection to actual exposures")
-        ])
-    ])
-    
-    return [
-        dcc.Graph(figure=fig),
-        dcc.Graph(figure=curve_fig),
-        notes
-    ]
-
-@app.callback(
-    Output('double-counting-output', 'children'),
-    Input('analyze-double-counting', 'n_clicks'),
-    [State('default-intensity', 'value'),
-     State('recovery-rate', 'value'),
-     State('bond-cds-basis', 'value'),
-     State('counterparty-type', 'value')]
-)
-def update_double_counting(n_clicks, default_intensity, recovery_rate, bond_cds_basis, counterparty_type):
-    if n_clicks is None:
-        return ""
-    
-    cva, fva_adj, dva = analyze_double_counting(
-        default_intensity, recovery_rate, bond_cds_basis, counterparty_type
-    )
-    
-    # Create comparison plot
-    fig = go.Figure()
-    
-    if counterparty_type == 'risky_borrower':
-        fig.add_trace(go.Bar(
-            x=['Lender CVA', 'Borrower FVA Adj', 'Traditional DVA'],
-            y=[cva, fva_adj, dva],
-            name='Adjustments'
-        ))
-        title = "Double Counting: Risky Borrower Case"
-    else:
-        fig.add_trace(go.Bar(
-            x=['Lender FVA Adj'],
-            y=[fva_adj],
-            name='Adjustments'
-        ))
-        title = "Pure FVA Case: Risky Lender"
-    
-    fig.update_layout(
-        title=title,
-        yaxis_title='Adjustment Value',
-        hovermode='x'
-    )
-    
-    # Create theoretical comparison
-    lambda_b = default_intensity / 100
-    times = np.linspace(0, 5, 20)
-    cva_curve = 1 - np.exp(-lambda_b * times)
-    fva_curve = 1 - np.exp(-(2*lambda_b + bond_cds_basis/100) * times)
-    
-    theory_fig = go.Figure()
-    theory_fig.add_trace(go.Scatter(
-        x=times, y=cva_curve, name='CVA/DVA (λ)'
-    ))
-    theory_fig.add_trace(go.Scatter(
-        x=times, y=fva_curve, name='FVA Adjusted (2λ+γ)'
-    ))
-    
-    theory_fig.update_layout(
-        title='Theoretical Adjustment Curves',
-        xaxis_title='Time (years)',
-        yaxis_title='Adjustment',
-        hovermode='x unified'
-    )
-    
-    notes = html.Div([
-        html.H5("DVA Double Counting Interpretation"),
-        html.P("Key findings from equations 9.2-9.10:"),
-        html.Ul([
-            html.Li("First-gen FVA leads to 2λ term in adjustment (eq 9.7)"),
-            html.Li("Traditional DVA only has λ term (eq 9.8)"),
-            html.Li("Results in valuation asymmetry between parties")
-        ]),
-        html.P("Solutions:"),
-        html.Ul([
-            html.Li("Use exposure-based FVA models (second generation)"),
-            html.Li("Explicitly separate funding and credit components"),
-            html.Li("Consider bond-CDS basis (γ) separately")
-        ])
-    ])
-    
-    return [
-        dcc.Graph(figure=fig),
-        dcc.Graph(figure=theory_fig),
-        notes
-    ]
-
-@app.callback(
-    Output('exposure-model-output', 'children'),
-    Input('calc-exposure-fva', 'n_clicks'),
-    [State('epe', 'value'),
-     State('ene', 'value'),
-     State('short-term-spread', 'value'),
-     State('long-term-spread', 'value')]
-)
-def update_exposure_model(n_clicks, epe, ene, short_term_spread, long_term_spread):
-    if n_clicks is None:
-        return ""
-    
-    fva_cost, fva_benefit, time_points, spreads = calculate_exposure_fva(
-        epe, ene, short_term_spread, long_term_spread
-    )
-    
-    # Create FVA breakdown
-    fig = go.Figure()
-    fig.add_trace(go.Bar(
-        x=['FVA Cost', 'FVA Benefit', 'Net FVA'],
-        y=[fva_cost, fva_benefit, fva_cost - fva_benefit],
-        name='FVA Components'
-    ))
-    
-    fig.update_layout(
-        title='Second-Generation FVA Calculation',
-        yaxis_title='FVA ($M)',
-        hovermode='x'
-    )
-    
-    # Create spread term structure
-    spread_fig = go.Figure()
-    spread_fig.add_trace(go.Scatter(
-        x=time_points, y=np.array(spreads)*100, name='Funding Spread'
-    ))
-    
-    spread_fig.update_layout(
-        title='Funding Spread Term Structure',
-        xaxis_title='Time (years)',
-        yaxis_title='Spread (bps)',
-        hovermode='x unified'
-    )
-    
-    # Exposure profile
-    exposure_fig = go.Figure()
-    exposure_fig.add_trace(go.Scatter(
-        x=time_points, y=[epe] * len(time_points), name='EPE', fill='tozeroy'
-    ))
-    exposure_fig.add_trace(go.Scatter(
-        x=time_points, y=[ene] * len(time_points), name='ENE', fill='tozeroy'
-    ))
-    
-    exposure_fig.update_layout(
-        title='Exposure Profiles',
+        title='Expected Exposure Profiles',
         xaxis_title='Time (years)',
         yaxis_title='Exposure ($M)',
         hovermode='x unified'
     )
     
+    # Create loan/deposit comparison
+    loan_mtm = exposure_df['EPE'].max()
+    deposit_mtm = exposure_df['ENE'].min()
+    
+    comp_fig = go.Figure()
+    comp_fig.add_trace(go.Bar(
+        x=['Swap EPE', 'Loan', 'Swap ENE', 'Deposit'],
+        y=[exposure_df['EPE'].max(), loan_mtm, exposure_df['ENE'].min(), deposit_mtm],
+        name='Comparison'
+    ))
+    
+    comp_fig.update_layout(
+        title='Exposure Comparison with Loan/Deposit',
+        yaxis_title='Exposure ($M)'
+    )
+    
     notes = html.Div([
-        html.H5("Second-Generation FVA Interpretation"),
-        html.P("Exposure-based FVA models:"),
+        html.H5("Exposure Profile Interpretation"),
+        html.P("The Expected Positive Exposure (EPE) and Expected Negative Exposure (ENE) profiles show:"),
         html.Ul([
-            html.Li(f"FVA Cost: ${fva_cost:.2f}M (funding EPE)"),
-            html.Li(f"FVA Benefit: ${fva_benefit:.2f}M (funding ENE)"),
-            html.Li(f"Net FVA: ${fva_cost - fva_benefit:.2f}M")
+            html.Li("EPE: The average exposure when the bank is owed money (like a loan)"),
+            html.Li("ENE: The average exposure when the bank owes money (like a deposit)"),
+            html.Li("The shape depends on swap characteristics and market parameters")
         ]),
-        html.P("Advantages over first-gen models:"),
+        html.P("Key observations:"),
         html.Ul([
-            html.Li("Properly handles collateral thresholds"),
-            html.Li("No DVA double-counting"),
-            html.Li("Links to actual exposures and CSA terms"),
-            html.Li("Can incorporate term structure of funding spreads")
+            html.Li(f"Maximum EPE: ${exposure_df['EPE'].max():.2f}M (similar to loan)"),
+            html.Li(f"Minimum ENE: ${exposure_df['ENE'].min():.2f}M (similar to deposit)"),
+            html.Li("Derivatives can have both loan-like and deposit-like characteristics")
         ])
     ])
     
     return [
         dcc.Graph(figure=fig),
-        dcc.Graph(figure=spread_fig),
-        dcc.Graph(figure=exposure_fig),
+        dcc.Graph(figure=comp_fig),
+        notes
+    ]
+
+@app.callback(
+    Output('fva-output', 'children'),
+    Input('calc-fva', 'n_clicks'),
+    [State('notional', 'value'),
+     State('coupon', 'value'),
+     State('maturity', 'value'),
+     State('volatility', 'value'),
+     State('mean-reversion', 'value'),
+     State('funding-spread', 'value'),
+     State('recovery-rate', 'value'),
+     State('csa-type', 'value'),
+     State('threshold', 'value')]
+)
+def update_fva(n_clicks, notional, coupon, maturity, volatility, mean_reversion, 
+              funding_spread, recovery_rate, csa_type, threshold):
+    if n_clicks is None:
+        return ""
+    
+    # Get exposures
+    exposure_df = calculate_exposures(notional, coupon, maturity, volatility, mean_reversion)
+    
+    # Calculate FVA
+    fva_cost, fva_benefit = calculate_fva(exposure_df, funding_spread, recovery_rate, csa_type, threshold)
+    total_fva = fva_cost - fva_benefit
+    
+    # Create FVA breakdown
+    fva_fig = go.Figure()
+    fva_fig.add_trace(go.Bar(
+        x=['FVA Cost', 'FVA Benefit', 'Net FVA'],
+        y=[fva_cost, fva_benefit, total_fva],
+        name='FVA Components'
+    ))
+    
+    fva_fig.update_layout(
+        title='FVA Calculation Breakdown',
+        yaxis_title='FVA ($M)'
+    )
+    
+    # CSA impact visualization
+    csa_impact = {
+        'none': total_fva,
+        'partial': total_fva * 0.5,  # Simplified
+        'full': 0
+    }
+    
+    csa_fig = go.Figure()
+    csa_fig.add_trace(go.Bar(
+        x=['No CSA', 'Partial CSA', 'Full CSA'],
+        y=[csa_impact['none'], csa_impact['partial'], csa_impact['full']],
+        name='CSA Impact'
+    ))
+    
+    csa_fig.update_layout(
+        title='Impact of CSA Agreement on FVA',
+        yaxis_title='FVA ($M)'
+    )
+    
+    notes = html.Div([
+        html.H5("FVA Interpretation"),
+        html.P("Funding Valuation Adjustment reflects:"),
+        html.Ul([
+            html.Li(f"FVA Cost: ${fva_cost:.2f}M (funding EPE at bank's spread)"),
+            html.Li(f"FVA Benefit: ${fva_benefit:.2f}M (benefit from ENE, reduced by recovery)"),
+            html.Li(f"Net FVA: ${total_fva:.2f}M (impact on derivative valuation)")
+        ]),
+        html.P("CSA Impact:"),
+        html.Ul([
+            html.Li("No CSA: Full FVA impact"),
+            html.Li("Partial CSA: Only exposures above threshold incur FVA"),
+            html.Li("Full CSA: No FVA (funding at collateral rate)")
+        ])
+    ])
+    
+    return [
+        dcc.Graph(figure=fva_fig),
+        dcc.Graph(figure=csa_fig),
+        notes
+    ]
+
+@app.callback(
+    Output('hedge-output', 'children'),
+    Input('analyze-hedge', 'n_clicks'),
+    [State('notional', 'value'),
+     State('coupon', 'value'),
+     State('maturity', 'value'),
+     State('volatility', 'value'),
+     State('mean-reversion', 'value'),
+     State('hedge-type', 'value'),
+     State('rehypothecation', 'value')]
+)
+def update_hedge_analysis(n_clicks, notional, coupon, maturity, volatility, 
+                         mean_reversion, hedge_type, rehypothecation):
+    if n_clicks is None:
+        return ""
+    
+    # Get exposures
+    exposure_df = calculate_exposures(notional, coupon, maturity, volatility, mean_reversion)
+    
+    # Analyze hedge strategy
+    results = analyze_hedge_strategy(hedge_type, rehypothecation, exposure_df)
+    
+    # Create hedge strategy comparison
+    strategies = ['Back-to-back CSA', 'Unsecured Hedge', 'Partial Hedge']
+    costs = [0.02 * np.sum(exposure_df['EPE']), 0.05 * np.sum(exposure_df['EPE']), 0.03 * np.sum(exposure_df['EPE'])]
+    benefits = [0.02 * np.sum(exposure_df['ENE']), 0.03 * np.sum(exposure_df['ENE']), 0.02 * np.sum(exposure_df['ENE'])]
+    
+    hedge_fig = go.Figure()
+    hedge_fig.add_trace(go.Bar(
+        x=strategies,
+        y=costs,
+        name='Funding Cost'
+    ))
+    hedge_fig.add_trace(go.Bar(
+        x=strategies,
+        y=benefits,
+        name='Funding Benefit'
+    ))
+    
+    hedge_fig.update_layout(
+        title='Hedge Strategy Comparison',
+        yaxis_title='Funding Impact ($M)',
+        barmode='group'
+    )
+    
+    # Collateral flows diagram
+    if hedge_type == 'backtoback' and rehypothecation:
+        flow_fig = go.Figure(go.Sankey(
+            node=dict(
+                label=["Corporate", "Bank", "Market Hedge"],
+                color=["blue", "green", "orange"]
+            ),
+            link=dict(
+                source=[0, 1],
+                target=[1, 2],
+                value=[exposure_df['EPE'].max(), exposure_df['EPE'].max()]
+            )
+        ))
+        flow_fig.update_layout(title='Collateral Flows with Rehypothecation')
+    else:
+        flow_fig = go.Figure(go.Sankey(
+            node=dict(
+                label=["Corporate", "Bank", "Market Hedge", "Money Market"],
+                color=["blue", "green", "orange", "red"]
+            ),
+            link=dict(
+                source=[0, 1, 1],
+                target=[1, 2, 3],
+                value=[0, exposure_df['EPE'].max(), exposure_df['EPE'].max()]
+            )
+        ))
+        flow_fig.update_layout(title='Collateral Flows with Funding')
+    
+    notes = html.Div([
+        html.H5("Hedge Strategy Analysis"),
+        html.P(results['description']),
+        html.P("Key findings:"),
+        html.Ul([
+            html.Li(f"Funding Cost: ${results['funding_cost']:.2f}M"),
+            html.Li(f"Funding Benefit: ${results['funding_benefit']:.2f}M"),
+            html.Li("Rehypothecation significantly reduces funding needs when allowed")
+        ]),
+        html.P("Optimal strategy depends on:"),
+        html.Ul([
+            html.Li("Counterparty credit quality"),
+            html.Li("Available collateral"),
+            html.Li("Market liquidity conditions")
+        ])
+    ])
+    
+    return [
+        dcc.Graph(figure=hedge_fig),
+        dcc.Graph(figure=flow_fig),
         notes
     ]
 
